@@ -5,20 +5,23 @@ import { Toolbar } from '@/components/Toolbar';
 import { BulkActionBar } from '@/components/BulkActionBar';
 import { DataTable } from '@/components/DataTable';
 import { RecordForm } from '@/components/RecordForm';
+import { Footer } from '@/components/Footer';
 import { useRecordStore } from '@/stores/recordStore';
 import { Database, ArrowRight } from 'lucide-react';
 
 export default function HomePage() {
-  // === auto fetch-on-mount (backend planner) ===
+  // Use selectors for performance and to avoid the "Maximum update depth exceeded" error
   const fetchRecords = useRecordStore((s) => s.fetchRecords);
-  useEffect(() => {
-    fetchRecords();
-  }, [fetchRecords]);
-  // === end auto fetch-on-mount ===
-
+  const loaded = useRecordStore((s) => s.loaded);
   const records = useRecordStore((s) => s.records);
   const searchQuery = useRecordStore((s) => s.searchQuery);
   const openForm = useRecordStore((s) => s.openForm);
+
+  useEffect(() => {
+    if (!loaded) {
+      fetchRecords();
+    }
+  }, [fetchRecords, loaded]);
 
   const filteredRecords = useMemo(() => {
     if (!searchQuery.trim()) return records;
@@ -33,10 +36,10 @@ export default function HomePage() {
   }, [records, searchQuery]);
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--brand-surface)' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--brand-surface)' }}>
       <Navbar />
 
-      <main className="mx-auto max-w-[1400px] space-y-6 px-6 py-8">
+      <main className="mx-auto w-full max-w-[1400px] flex-1 space-y-6 px-6 py-8">
         {/* Page Header */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -121,6 +124,7 @@ export default function HomePage() {
         )}
       </main>
 
+      <Footer />
       <RecordForm />
     </div>
   );
