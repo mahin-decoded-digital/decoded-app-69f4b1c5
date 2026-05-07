@@ -10,6 +10,8 @@
 // If MONGODB_URI leaks into a non-prod env, it is ignored.
 // ---------------------------------------------------------------------------
 
+// REMOVED: import { MongoClient, ObjectId } from 'mongodb' — no database in WebContainers
+// REMOVED: import type { Db, Collection } from 'mongodb' — no database in WebContainers
 // Using `any` for the index signature (not `unknown`) is deliberate. Routes
 // freely read `doc.createdAt`, `doc.title`, `doc.dueDate`, etc. and feed
 // them into `new Date()`, string ops, comparisons — strict `tsc` rejects
@@ -67,14 +69,14 @@ function memoryCollection(name: string) {
     },
     async updateOne(id: string, update: Record<string, unknown>): Promise<boolean> {
       const docs = getStore(name)
-      const idx = docs.findIndex((d: Doc) => d._id === id)
+      const idx = docs.findIndex((d) => d._id === id)
       if (idx === -1) return false
       docs[idx] = { ...docs[idx]!, ...update, _id: id }
       return true
     },
     async deleteOne(id: string): Promise<boolean> {
       const docs = getStore(name)
-      const idx = docs.findIndex((d: Doc) => d._id === id)
+      const idx = docs.findIndex((d) => d._id === id)
       if (idx === -1) return false
       docs.splice(idx, 1)
       return true
@@ -86,18 +88,15 @@ function memoryCollection(name: string) {
 // Real MongoDB collection (when MONGODB_URI is set)
 // ---------------------------------------------------------------------------
 
-// Note: Using `any` for MongoDB types to avoid TSC errors without needing
-// 'mongodb' types available at compile time in WebContainers.
+let mongoDb: Db | null = null
+let mongoConnected = false
 
-let mongoDb: any = null
-
-async function getMongoDb(): Promise<any> {
+async function getMongoDb(): Promise<Db> {
   if (mongoDb) return mongoDb
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { MongoClient } = require('mongodb')
   const client = new MongoClient(MONGODB_URI)
   await client.connect()
   mongoDb = client.db()
+  mongoConnected = true
   console.log('[db] MongoDB connected:', MONGODB_URI.replace(/:([^@]+)@/, ':***@'))
   return mongoDb
 }
@@ -107,14 +106,12 @@ function mongoCollection(name: string) {
     async find(query?: Record<string, unknown>): Promise<Doc[]> {
       const db = await getMongoDb()
       const docs = await db.collection(name).find(query ?? {}).toArray()
-      return docs.map((d: any) => ({ ...d, _id: d._id.toString() })) as Doc[]
+      return docs.map((d) => ({ ...d, _id: d._id.toString() })) as Doc[]
     },
     async findById(id: string): Promise<Doc | null> {
       const db = await getMongoDb()
       let doc
       try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { ObjectId } = require('mongodb')
         doc = await db.collection(name).findOne({ _id: new ObjectId(id) })
       } catch {
         doc = await db.collection(name).findOne({ _id: id as any })
@@ -131,8 +128,6 @@ function mongoCollection(name: string) {
       const db = await getMongoDb()
       let result
       try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { ObjectId } = require('mongodb')
         result = await db.collection(name).updateOne({ _id: new ObjectId(id) }, { $set: update })
       } catch {
         result = await db.collection(name).updateOne({ _id: id as any }, { $set: update })
@@ -143,8 +138,6 @@ function mongoCollection(name: string) {
       const db = await getMongoDb()
       let result
       try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { ObjectId } = require('mongodb')
         result = await db.collection(name).deleteOne({ _id: new ObjectId(id) })
       } catch {
         result = await db.collection(name).deleteOne({ _id: id as any })

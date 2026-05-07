@@ -1,6 +1,7 @@
 import { Search, Plus, Download, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TagFilter } from '@/components/TagFilter';
 import { useRecordStore } from '@/stores/recordStore';
 import { exportToCSV, exportToExcel } from '@/lib/export';
 import { toast } from 'sonner';
@@ -34,47 +35,53 @@ export function Toolbar({ filteredRecords }: ToolbarProps) {
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      {/* Search */}
-      <div className="relative flex-1 min-w-[200px] max-w-md">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="text"
-          placeholder="Search by name, category, notes..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9"
-        />
+    <div className="space-y-3">
+      {/* Search + actions row */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search by name, category, notes, tags..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCSV}
+            className="gap-1.5 text-xs"
+          >
+            <Download className="h-3.5 w-3.5" />
+            CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportExcel}
+            className="gap-1.5 text-xs"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            Excel
+          </Button>
+          <button
+            onClick={() => openForm()}
+            className="btn-primary flex items-center gap-1.5 px-4 py-2 text-sm"
+          >
+            <Plus className="h-4 w-4" />
+            New Record
+          </button>
+        </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExportCSV}
-          className="gap-1.5 text-xs"
-        >
-          <Download className="h-3.5 w-3.5" />
-          CSV
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExportExcel}
-          className="gap-1.5 text-xs"
-        >
-          <FileText className="h-3.5 w-3.5" />
-          Excel
-        </Button>
-        <button
-          onClick={() => openForm()}
-          className="btn-primary flex items-center gap-1.5 px-4 py-2 text-sm"
-        >
-          <Plus className="h-4 w-4" />
-          New Record
-        </button>
-      </div>
+      {/* Tag filter row — only renders when tags exist */}
+      <TagFilter />
     </div>
   );
 }

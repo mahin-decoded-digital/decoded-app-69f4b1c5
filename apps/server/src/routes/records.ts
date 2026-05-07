@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db } from '../lib/db';
+import { db } from '../lib/db.js';
 
 type WithMongoId = { _id: string; [key: string]: unknown };
 function project<T extends WithMongoId>(doc: T): Omit<T, '_id'> & { id: string } {

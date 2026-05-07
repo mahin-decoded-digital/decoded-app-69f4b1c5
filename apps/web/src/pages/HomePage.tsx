@@ -10,30 +10,41 @@ import { useRecordStore } from '@/stores/recordStore';
 import { Database, ArrowRight } from 'lucide-react';
 
 export default function HomePage() {
-  // Use selectors for performance and to avoid the "Maximum update depth exceeded" error
   const fetchRecords = useRecordStore((s) => s.fetchRecords);
-  const loaded = useRecordStore((s) => s.loaded);
+  useEffect(() => {
+    fetchRecords();
+  }, [fetchRecords]);
+
   const records = useRecordStore((s) => s.records);
   const searchQuery = useRecordStore((s) => s.searchQuery);
+  const activeTags = useRecordStore((s) => s.activeTags);
   const openForm = useRecordStore((s) => s.openForm);
 
-  useEffect(() => {
-    if (!loaded) {
-      fetchRecords();
-    }
-  }, [fetchRecords, loaded]);
-
   const filteredRecords = useMemo(() => {
-    if (!searchQuery.trim()) return records;
-    const q = searchQuery.toLowerCase();
-    return records.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        r.category.toLowerCase().includes(q) ||
-        r.notes.toLowerCase().includes(q) ||
-        r.status.toLowerCase().includes(q)
-    );
-  }, [records, searchQuery]);
+    let result = records;
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (r) =>
+          r.name.toLowerCase().includes(q) ||
+          r.category.toLowerCase().includes(q) ||
+          r.notes.toLowerCase().includes(q) ||
+          r.status.toLowerCase().includes(q) ||
+          (r.tags ?? []).some((t) => t.toLowerCase().includes(q))
+      );
+    }
+
+    // Tag filter — record must have ALL active tags
+    if (activeTags.length > 0) {
+      result = result.filter((r) =>
+        activeTags.every((tag) => (r.tags ?? []).includes(tag))
+      );
+    }
+
+    return result;
+  }, [records, searchQuery, activeTags]);
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--brand-surface)' }}>
@@ -68,7 +79,7 @@ export default function HomePage() {
         {/* Stats */}
         <StatsBar records={records} />
 
-        {/* Toolbar */}
+        {/* Toolbar (includes TagFilter) */}
         <Toolbar filteredRecords={filteredRecords} />
 
         {/* Bulk action bar */}

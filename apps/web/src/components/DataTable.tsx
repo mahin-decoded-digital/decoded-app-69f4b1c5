@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import {ChevronUp, ChevronDown, ChevronsDown, Edit, Trash, ChevronLeft, ChevronRight} from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronsDown, Edit, Trash, ChevronLeft, ChevronRight, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { Select } from '@/components/ui/select';
@@ -48,6 +48,31 @@ function SortIcon({
   );
 }
 
+function TagPills({ tags, onTagClick }: { tags: string[]; onTagClick: (tag: string) => void }) {
+  if (!tags || tags.length === 0) return <span className="text-xs text-muted-foreground">—</span>;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {tags.map((tag) => (
+        <button
+          key={tag}
+          type="button"
+          onClick={() => onTagClick(tag)}
+          title={`Filter by "${tag}"`}
+          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold transition-all hover:opacity-80 cursor-pointer"
+          style={{
+            background: 'rgba(109,40,217,0.1)',
+            color: 'var(--brand-violet)',
+            border: '1px solid rgba(109,40,217,0.22)',
+          }}
+        >
+          <Tag className="h-2 w-2" />
+          {tag}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function DataTable({ filteredRecords }: DataTableProps) {
   const selectedIds = useRecordStore((s) => s.selectedIds);
   const sortConfig = useRecordStore((s) => s.sortConfig);
@@ -61,6 +86,7 @@ export function DataTable({ filteredRecords }: DataTableProps) {
   const setPageSize = useRecordStore((s) => s.setPageSize);
   const openForm = useRecordStore((s) => s.openForm);
   const deleteRecord = useRecordStore((s) => s.deleteRecord);
+  const toggleActiveTag = useRecordStore((s) => s.toggleActiveTag);
 
   const [deleteTarget, setDeleteTarget] = useState<Record | null>(null);
 
@@ -120,7 +146,6 @@ export function DataTable({ filteredRecords }: DataTableProps) {
   const confirmDelete = () => {
     if (deleteTarget) {
       deleteRecord(deleteTarget.id);
-      toast.success(`"${deleteTarget.name}" deleted`);
       setDeleteTarget(null);
     }
   };
@@ -130,6 +155,7 @@ export function DataTable({ filteredRecords }: DataTableProps) {
     { field: 'category', label: 'Category', sortable: true },
     { field: 'quantity', label: 'Qty', sortable: true },
     { field: 'status', label: 'Status', sortable: true },
+    { field: 'tags', label: 'Tags', sortable: false },
     { field: 'notes', label: 'Notes', sortable: false },
     { field: 'createdAt', label: 'Created', sortable: true },
   ];
@@ -191,7 +217,7 @@ export function DataTable({ filteredRecords }: DataTableProps) {
           <tbody>
             {paginated.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-16 text-center">
+                <td colSpan={9} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <div
                       className="flex h-16 w-16 items-center justify-center rounded-2xl"
@@ -206,7 +232,7 @@ export function DataTable({ filteredRecords }: DataTableProps) {
                       No records match your search
                     </p>
                     <p className="max-w-xs text-sm text-muted-foreground">
-                      Try a different keyword or clear the search to see all records.
+                      Try a different keyword, adjust tag filters, or clear the search to see all records.
                     </p>
                   </div>
                 </td>
@@ -263,6 +289,9 @@ export function DataTable({ filteredRecords }: DataTableProps) {
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={record.status} />
+                    </td>
+                    <td className="px-4 py-3 max-w-[180px]">
+                      <TagPills tags={record.tags ?? []} onTagClick={toggleActiveTag} />
                     </td>
                     <td className="max-w-[200px] px-4 py-3">
                       <span className="block truncate text-xs text-muted-foreground">

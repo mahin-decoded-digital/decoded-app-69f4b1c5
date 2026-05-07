@@ -7,6 +7,7 @@ export interface Record {
   status: 'active' | 'inactive' | 'pending';
   notes: string;
   updatedAt: Date;
+  tags: string[];
 }
 
 export type SortField = keyof Record;
@@ -23,6 +24,7 @@ export interface RecordFormData {
   quantity: string;
   status: 'active' | 'inactive' | 'pending';
   notes: string;
+  tags: string[];
 }
 
 export interface ValidationErrors {

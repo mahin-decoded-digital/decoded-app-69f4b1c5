@@ -1,6 +1,6 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
-import { apiUrl } from '@/lib/api';
 import type { Record, SortConfig, RecordFormData } from '@/types';
 
 interface RecordState {
@@ -15,14 +15,15 @@ interface RecordState {
   loading: boolean;
   loaded: boolean;
   error: string | null;
+  activeTags: string[];
 }
 
 interface RecordActions {
   fetchRecords: () => Promise<void>;
-  addRecord: (data: RecordFormData) => Promise<void>;
-  updateRecord: (id: string, data: RecordFormData) => Promise<void>;
-  deleteRecord: (id: string) => Promise<void>;
-  bulkDelete: (ids: string[]) => Promise<void>;
+  addRecord: (data: RecordFormData) => void;
+  updateRecord: (id: string, data: RecordFormData) => void;
+  deleteRecord: (id: string) => void;
+  bulkDelete: (ids: string[]) => void;
   setSelectedIds: (ids: string[]) => void;
   toggleSelected: (id: string) => void;
   selectAll: (ids: string[]) => void;
@@ -33,188 +34,156 @@ interface RecordActions {
   setPageSize: (size: number) => void;
   openForm: (record?: Record) => void;
   closeForm: () => void;
+  setActiveTags: (tags: string[]) => void;
+  toggleActiveTag: (tag: string) => void;
 }
 
 type RecordStore = RecordState & RecordActions;
 
+let idCounter = 1;
+function generateId(): string {
+  return `rec_${Date.now()}_${idCounter++}`;
+}
+
 export const useRecordStore = create<RecordStore>()(
-  (set, get) => ({
-    records: [],
-    selectedIds: [],
-    searchQuery: '',
-    sortConfig: { field: 'createdAt', direction: 'desc' },
-    currentPage: 1,
-    pageSize: 10,
-    editingRecord: null,
-    isFormOpen: false,
-    loading: false,
-    loaded: false,
-    error: null,
+  persist(
+    (set, get) => ({
+      records: [],
+      selectedIds: [],
+      searchQuery: '',
+      sortConfig: { field: 'createdAt', direction: 'desc' },
+      currentPage: 1,
+      pageSize: 10,
+      editingRecord: null,
+      isFormOpen: false,
+      loading: false,
+      loaded: true,
+      error: null,
+      activeTags: [],
 
-    fetchRecords: async () => {
-      if (get().loading || get().loaded) return;
-      set({ loading: true, error: null });
-      try {
-        const res = await fetch(apiUrl('/api/records'));
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const records = await res.json();
-        set({ records, loading: false, loaded: true });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to load records';
-        set({ loading: false, error: message });
-        toast.error(message);
-      }
-    },
+      fetchRecords: async () => {
+        // Data is persisted locally — no network fetch needed.
+        set({ loaded: true });
+      },
 
-    addRecord: async (data: RecordFormData) => {
-      try {
-        const res = await fetch(apiUrl('/api/records'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: data.name.trim(),
-            category: data.category.trim(),
-            quantity: parseInt(data.quantity, 10),
-            status: data.status,
-            notes: data.notes.trim(),
-          }),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const newRecord = await res.json();
+      addRecord: (data: RecordFormData) => {
+        const now = new Date();
+        const newRecord: Record = {
+          id: generateId(),
+          createdAt: now,
+          updatedAt: now,
+          name: data.name.trim(),
+          category: data.category.trim(),
+          quantity: parseInt(data.quantity, 10),
+          status: data.status,
+          notes: data.notes.trim(),
+          tags: data.tags ?? [],
+        };
         set((state) => ({ records: [newRecord, ...state.records] }));
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to create record';
-        set({ error: message });
-        toast.error(message);
-      }
-    },
+      },
 
-    updateRecord: async (id: string, data: RecordFormData) => {
-      const previous = get().records;
-      set((state) => ({
-        records: state.records.map((r) =>
-          r.id === id
-            ? {
-                ...r,
-                name: data.name.trim(),
-                category: data.category.trim(),
-                quantity: parseInt(data.quantity, 10),
-                status: data.status,
-                notes: data.notes.trim(),
-                updatedAt: new Date(),
-              }
-            : r
-        ),
-      }));
-      try {
-        const res = await fetch(apiUrl(`/api/records/${id}`), {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: data.name.trim(),
-            category: data.category.trim(),
-            quantity: parseInt(data.quantity, 10),
-            status: data.status,
-            notes: data.notes.trim(),
-          }),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const updatedRecord = await res.json();
+      updateRecord: (id: string, data: RecordFormData) => {
         set((state) => ({
-          records: state.records.map((r) => (r.id === id ? updatedRecord : r)),
+          records: state.records.map((r) =>
+            r.id === id
+              ? {
+                  ...r,
+                  name: data.name.trim(),
+                  category: data.category.trim(),
+                  quantity: parseInt(data.quantity, 10),
+                  status: data.status,
+                  notes: data.notes.trim(),
+                  tags: data.tags ?? [],
+                  updatedAt: new Date(),
+                }
+              : r
+          ),
         }));
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to update record';
-        set({ records: previous, error: message });
-        toast.error(message);
-      }
-    },
+      },
 
-    deleteRecord: async (id: string) => {
-      const previous = get().records;
-      const previousSelected = get().selectedIds;
-      set((state) => ({
-        records: state.records.filter((r) => r.id !== id),
-        selectedIds: state.selectedIds.filter((sid) => sid !== id),
-      }));
-      try {
-        const res = await fetch(apiUrl(`/api/records/${id}`), {
-          method: 'DELETE',
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to delete record';
-        set({ records: previous, selectedIds: previousSelected, error: message });
-        toast.error(`Could not delete the record — restoring it`);
-      }
-    },
+      deleteRecord: (id: string) => {
+        const record = get().records.find((r) => r.id === id);
+        set((state) => ({
+          records: state.records.filter((r) => r.id !== id),
+          selectedIds: state.selectedIds.filter((sid) => sid !== id),
+        }));
+        if (record) {
+          toast.success(`"${record.name}" deleted`);
+        }
+      },
 
-    bulkDelete: async (ids: string[]) => {
-      const previous = get().records;
-      const idSet = new Set(ids);
-      set((state) => ({
-        records: state.records.filter((r) => !idSet.has(r.id)),
-        selectedIds: [],
-      }));
-      try {
-        await Promise.all(
-          ids.map(async (id) => {
-            const res = await fetch(apiUrl(`/api/records/${id}`), {
-              method: 'DELETE',
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status} for id ${id}`);
-          })
-        );
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to delete records';
-        set({ records: previous, error: message });
-        toast.error(`Could not delete some records — restoring them`);
-      }
-    },
+      bulkDelete: (ids: string[]) => {
+        const idSet = new Set(ids);
+        set((state) => ({
+          records: state.records.filter((r) => !idSet.has(r.id)),
+          selectedIds: [],
+        }));
+        toast.success(`${ids.length} record${ids.length !== 1 ? 's' : ''} deleted`);
+      },
 
-    setSelectedIds: (ids: string[]) => {
-      set({ selectedIds: ids });
-    },
+      setSelectedIds: (ids: string[]) => {
+        set({ selectedIds: ids });
+      },
 
-    toggleSelected: (id: string) => {
-      const { selectedIds } = get();
-      if (selectedIds.includes(id)) {
-        set({ selectedIds: selectedIds.filter((sid) => sid !== id) });
-      } else {
-        set({ selectedIds: [...selectedIds, id] });
-      }
-    },
+      toggleSelected: (id: string) => {
+        const { selectedIds } = get();
+        if (selectedIds.includes(id)) {
+          set({ selectedIds: selectedIds.filter((sid) => sid !== id) });
+        } else {
+          set({ selectedIds: [...selectedIds, id] });
+        }
+      },
 
-    selectAll: (ids: string[]) => {
-      set({ selectedIds: ids });
-    },
+      selectAll: (ids: string[]) => {
+        set({ selectedIds: ids });
+      },
 
-    clearSelection: () => {
-      set({ selectedIds: [] });
-    },
+      clearSelection: () => {
+        set({ selectedIds: [] });
+      },
 
-    setSearchQuery: (query: string) => {
-      set({ searchQuery: query, currentPage: 1 });
-    },
+      setSearchQuery: (query: string) => {
+        set({ searchQuery: query, currentPage: 1 });
+      },
 
-    setSortConfig: (config: SortConfig) => {
-      set({ sortConfig: config, currentPage: 1 });
-    },
+      setSortConfig: (config: SortConfig) => {
+        set({ sortConfig: config, currentPage: 1 });
+      },
 
-    setCurrentPage: (page: number) => {
-      set({ currentPage: page });
-    },
+      setCurrentPage: (page: number) => {
+        set({ currentPage: page });
+      },
 
-    setPageSize: (size: number) => {
-      set({ pageSize: size, currentPage: 1 });
-    },
+      setPageSize: (size: number) => {
+        set({ pageSize: size, currentPage: 1 });
+      },
 
-    openForm: (record?: Record) => {
-      set({ editingRecord: record ?? null, isFormOpen: true });
-    },
+      openForm: (record?: Record) => {
+        set({ editingRecord: record ?? null, isFormOpen: true });
+      },
 
-    closeForm: () => {
-      set({ editingRecord: null, isFormOpen: false });
-    },
-  })
+      closeForm: () => {
+        set({ editingRecord: null, isFormOpen: false });
+      },
+
+      setActiveTags: (tags: string[]) => {
+        set({ activeTags: tags, currentPage: 1 });
+      },
+
+      toggleActiveTag: (tag: string) => {
+        const { activeTags } = get();
+        if (activeTags.includes(tag)) {
+          set({ activeTags: activeTags.filter((t) => t !== tag), currentPage: 1 });
+        } else {
+          set({ activeTags: [...activeTags, tag], currentPage: 1 });
+        }
+      },
+    }),
+    {
+      name: 'quickbase-lite-records',
+      partialize: (state) => ({
+        records: state.records,
+      }),
+    }
+  )
 );

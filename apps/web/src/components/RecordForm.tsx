@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
+import { TagInput } from '@/components/TagInput';
 import { useRecordStore } from '@/stores/recordStore';
 import { toast } from 'sonner';
 import type { RecordFormData, ValidationErrors } from '@/types';
@@ -25,6 +26,7 @@ const EMPTY_FORM: RecordFormData = {
   quantity: '',
   status: 'active',
   notes: '',
+  tags: [],
 };
 
 function validate(data: RecordFormData): ValidationErrors {
@@ -66,6 +68,7 @@ export function RecordForm() {
         quantity: String(editingRecord.quantity),
         status: editingRecord.status,
         notes: editingRecord.notes,
+        tags: editingRecord.tags ?? [],
       });
     } else {
       setForm(EMPTY_FORM);
@@ -76,7 +79,7 @@ export function RecordForm() {
 
   if (!isFormOpen) return null;
 
-  const handleChange = (field: keyof RecordFormData, value: string) => {
+  const handleChange = (field: keyof RecordFormData, value: string | string[]) => {
     const updated = { ...form, [field]: value };
     setForm(updated);
     if (touched.has(field)) {
@@ -108,7 +111,6 @@ export function RecordForm() {
       toast.success('Record updated successfully');
     } else {
       addRecord(form);
-      toast.success('Record created successfully');
     }
     closeForm();
   };
@@ -124,11 +126,11 @@ export function RecordForm() {
       />
       <div
         className="relative z-10 w-full max-w-lg brand-card brand-pop"
-        style={{ background: 'var(--brand-surface-alt)' }}
+        style={{ background: 'var(--brand-surface-alt)', maxHeight: '90vh', overflowY: 'auto' }}
       >
         {/* Header */}
         <div
-          className="flex items-center justify-between border-b border-[var(--brand-border)] px-6 py-4"
+          className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--brand-border)] px-6 py-4"
           style={{ background: 'var(--brand-gradient-soft)' }}
         >
           <div className="flex items-center gap-3">
@@ -230,6 +232,17 @@ export function RecordForm() {
               <option value="inactive">Inactive</option>
               <option value="pending">Pending</option>
             </Select>
+          </div>
+
+          {/* Tags */}
+          <div className="space-y-1.5">
+            <Label className="text-sm" style={{ fontWeight: 600 }}>
+              Tags
+            </Label>
+            <TagInput
+              value={form.tags}
+              onChange={(tags) => handleChange('tags', tags)}
+            />
           </div>
 
           {/* Notes */}

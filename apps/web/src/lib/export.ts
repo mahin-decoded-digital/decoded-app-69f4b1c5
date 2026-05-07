@@ -17,13 +17,14 @@ function formatDate(d: Date): string {
 }
 
 export function exportToCSV(records: Record[]): void {
-  const headers = ['ID', 'Name', 'Category', 'Quantity', 'Status', 'Notes', 'Created At', 'Updated At'];
+  const headers = ['ID', 'Name', 'Category', 'Quantity', 'Status', 'Tags', 'Notes', 'Created At', 'Updated At'];
   const rows = records.map((r) => [
     r.id,
     r.name,
     r.category,
     r.quantity,
     r.status,
+    (r.tags ?? []).join('; '),
     r.notes,
     formatDate(r.createdAt),
     formatDate(r.updatedAt),
@@ -40,13 +41,14 @@ export function exportToCSV(records: Record[]): void {
 }
 
 export function exportToExcel(records: Record[]): void {
-  const headers = ['ID', 'Name', 'Category', 'Quantity', 'Status', 'Notes', 'Created At', 'Updated At'];
+  const headers = ['ID', 'Name', 'Category', 'Quantity', 'Status', 'Tags', 'Notes', 'Created At', 'Updated At'];
   const rows = records.map((r) => [
     r.id,
     r.name,
     r.category,
     r.quantity,
     r.status,
+    (r.tags ?? []).join('; '),
     r.notes,
     formatDate(r.createdAt),
     formatDate(r.updatedAt),

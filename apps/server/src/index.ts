@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
-import { db } from './lib/db'
+import { db } from './lib/db.js'
 
 // ── Environment validation ──
 const isProd = process.env.PROD === 'true'
@@ -36,7 +36,7 @@ app.get('/api/health', (_req, res) => {
 // --- Add your API routes below ---
 
 // === auto-mounted routers (backend planner) ===
-import recordsRouter from './routes/records'
+import recordsRouter from './routes/records.js'
 app.use('/api/records', recordsRouter)
 // === end auto-mounted routers ===
 
